@@ -6,6 +6,20 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 
+from auth import login_page
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+
+if not st.session_state["logged_in"]:
+    login_page()
+    st.stop()
+
+with st.sidebar:
+    st.write(f"👤 {st.session_state.get('email', '')}")
+    if st.button("🔒 ออกจากระบบ"):
+        st.session_state["logged_in"] = False
+        st.rerun()
+
 st.set_page_config(page_title="Sales Dashboard", layout="wide", page_icon="📊")
 
 st.markdown("""
