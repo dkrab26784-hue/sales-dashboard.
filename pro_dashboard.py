@@ -2,15 +2,18 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import io
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
 
 st.set_page_config(page_title="Sales Dashboard", layout="wide", page_icon="📊")
 
 st.markdown("""
 <style>
-[data-testid="stMetricValue"] { color: #1f77b4 !important; font-size: 2rem !important; }
-[data-testid="stMetricLabel"] { font-weight: bold !important; }
-.stDownloadButton button { width: 100%; }
-div[data-testid="stFileUploader"] { border: 2px dashed #1f77b4; border-radius: 10px; padding: 10px; }
+[data-testid="stMetricValue"] { font-size: 2.5rem !important; font-weight: bold !important; }
+.alert-red { background: #ff4444; color: white; padding: 10px; border-radius: 8px; margin: 5px 0; }
+.alert-yellow { background: #ffaa00; color: white; padding: 10px; border-radius: 8px; margin: 5px 0; }
+.alert-green { background: #00cc66; color: white; padding: 10px; border-radius: 8px; margin: 5px 0; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -18,180 +21,172 @@ div[data-testid="stFileUploader"] { border: 2px dashed #1f77b4; border-radius: 1
 lang = st.selectbox("🌐", ["🇹🇭 ภาษาไทย", "🇬🇧 English"], label_visibility="collapsed")
 thai = lang == "🇹🇭 ภาษาไทย"
 
-# Text
-T = {
-    "title": "📊 แดชบอร์ดยอดขาย" if thai else "📊 Sales Dashboard",
-    "subtitle": "วิเคราะห์ข้อมูลธุรกิจของคุณได้ทันที" if thai else "Instant Business Data Analysis",
-    "upload": "⬆️ อัพโหลดไฟล์ข้อมูล" if thai else "⬆️ Upload Data",
-    "upload_hint": "รองรับ CSV และ Excel" if thai else "Supports CSV and Excel",
-    "demo": "▶️ ลองใช้ข้อมูลตัวอย่าง" if thai else "▶️ Try Demo Data",
-    "try_label": "🎮 ทดลองใช้" if thai else "🎮 Try it",
-    "success": "✅ อัพโหลดสำเร็จ!" if thai else "✅ Upload successful!",
-    "error": "❌ เกิดข้อผิดพลาด" if thai else "❌ Error occurred",
-    "demo_info": "🎮 กำลังใช้ข้อมูลตัวอย่าง" if thai else "🎮 Using demo data",
-    "welcome": "### 👋 ยินดีต้อนรับ!" if thai else "### 👋 Welcome!",
-    "welcome_text": "- 📁 อัพโหลดไฟล์ Excel หรือ CSV\n- 📊 ระบบวิเคราะห์ทันที\n- 💾 ดาวน์โหลดรายงานได้" if thai else "- 📁 Upload Excel or CSV\n- 📊 Instant analysis\n- 💾 Download reports",
-    "col_map": "🗂️ ตั้งค่าคอลัมน์" if thai else "🗂️ Column Mapping",
-    "month_col": "📅 เลือกคอลัมน์เดือน/วันที่" if thai else "📅 Select Month/Date column",
-    "value_col": "📈 เลือกคอลัมน์วิเคราะห์" if thai else "📈 Select value columns",
-    "metrics": "### 📈 ภาพรวม Key Metrics" if thai else "### 📈 Key Metrics",
-    "avg": "เฉลี่ย" if thai else "Avg",
-    "max": "สูงสุด" if thai else "Max",
-    "chart": "### 📊 กราฟแนวโน้ม" if thai else "### 📊 Sales Trend",
-    "filter": "เลือกสินค้าที่ต้องการดู" if thai else "Filter products",
-    "line": "📈 Line Chart",
-    "bar": "📊 Bar Chart",
-    "line_title": "แนวโน้มยอดขายรายเดือน" if thai else "Sales Trend",
-    "bar_title": "เปรียบเทียบยอดขาย" if thai else "Sales Comparison",
-    "month_axis": "เดือน" if thai else "Month",
-    "sales_axis": "ยอดขาย" if thai else "Sales",
-    "summary": "### 💡 สรุปผลการวิเคราะห์" if thai else "### 💡 Quick Summary",
-    "best_prod": "🏆 สินค้าขายดีสุด" if thai else "🏆 Best Product",
-    "worst_prod": "⚠️ ต้องปรับปรุง" if thai else "⚠️ Needs Attention",
-    "best_month": "📅 เดือนที่ดีที่สุด" if thai else "📅 Best Month",
-    "raw": "📋 ดูข้อมูลดิบ" if thai else "📋 View Raw Data",
-    "export": "### 💾 ดาวน์โหลดรายงาน" if thai else "### 💾 Export Report",
-    "dl_excel": "📥 ดาวน์โหลด Excel" if thai else "📥 Download Excel",
-    "dl_csv": "📥 ดาวน์โหลด CSV" if thai else "📥 Download CSV",
-    "footer": "สร้างด้วย ❤️ Python & Streamlit" if thai else "Made with ❤️ Python & Streamlit",
-    "warn_col": "⚠️ กรุณาเลือกอย่างน้อย 1 คอลัมน์" if thai else "⚠️ Please select at least 1 column",
-}
-
-st.title(T["title"])
-st.markdown(f"##### {T['subtitle']}")
+st.title("📊 แดชบอร์ดยอดขาย" if thai else "📊 Sales Dashboard")
+st.markdown("##### เปิดมาแล้วรู้ทันทีว่าวันนี้เป็นยังไง" if thai else "##### Know your business status instantly")
 st.divider()
 
+# Upload + Demo
 col1, col2 = st.columns([3, 1])
 with col1:
-    st.markdown(f"### {T['upload']}")
-    uploaded_file = st.file_uploader(T["upload_hint"], type=["csv", "xlsx"])
+    uploaded_file = st.file_uploader(
+        "⬆️ อัพโหลด CSV หรือ Excel" if thai else "⬆️ Upload CSV or Excel",
+        type=["csv", "xlsx"]
+    )
 with col2:
-    st.markdown(f"### {T['try_label']}")
     st.markdown(" ")
-    use_demo = st.button(T["demo"], use_container_width=True)
-
-st.divider()
+    st.markdown(" ")
+    use_demo = st.button(
+        "▶️ ทดลองใช้ข้อมูลตัวอย่าง" if thai else "▶️ Try Demo Data",
+        use_container_width=True
+    )
 
 if uploaded_file:
     try:
-        if uploaded_file.name.endswith(".csv"):
-            df = pd.read_csv(uploaded_file)
-        else:
-            df = pd.read_excel(uploaded_file)
-        st.success(f"{T['success']} {len(df)} {'แถว' if thai else 'rows'} {len(df.columns)} {'คอลัมน์' if thai else 'columns'}")
+        df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
+        st.success("✅ อัพโหลดสำเร็จ!" if thai else "✅ Uploaded!")
     except Exception as e:
-        st.error(f"{T['error']}: {e}")
+        st.error(f"❌ {e}")
         st.stop()
 elif use_demo:
-    if thai:
-        df = pd.DataFrame({
-            "เดือน": ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย."],
-            "โทรศัพท์": [120, 135, 150, 160, 145, 170],
-            "หูฟัง": [80, 90, 85, 95, 100, 110],
-            "เคส": [200, 210, 195, 220, 230, 250]
-        })
-    else:
-        df = pd.DataFrame({
-            "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-            "Phone": [120, 135, 150, 160, 145, 170],
-            "Earphone": [80, 90, 85, 95, 100, 110],
-            "Case": [200, 210, 195, 220, 230, 250]
-        })
-    st.info(T["demo_info"])
+    df = pd.DataFrame({
+        "เดือน" if thai else "Month": ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย."] if thai else ["Jan","Feb","Mar","Apr","May","Jun"],
+        "โทรศัพท์" if thai else "Phone": [120,135,150,160,45,170],
+        "หูฟัง" if thai else "Earphone": [80,90,85,95,100,110],
+        "เคส" if thai else "Case": [200,210,195,220,230,250]
+    })
+    st.info("🎮 กำลังใช้ข้อมูลตัวอย่าง" if thai else "🎮 Using demo data")
 else:
-    st.markdown(T["welcome"])
-    st.markdown(T["welcome_text"])
+    st.markdown("### 👋 ยินดีต้อนรับ!" if thai else "### 👋 Welcome!")
+    st.markdown("อัพโหลดไฟล์หรือกดทดลองใช้เพื่อเริ่มต้น" if thai else "Upload a file or try demo to get started")
     st.stop()
 
-with st.expander(T["col_map"], expanded=True):
-    all_cols = df.columns.tolist()
-    c1, c2 = st.columns(2)
-    with c1:
-        month_col = st.selectbox(T["month_col"], all_cols)
-    with c2:
-        value_cols = st.multiselect(
-            T["value_col"],
-            [c for c in all_cols if c != month_col],
-            default=[c for c in all_cols if c != month_col]
-        )
-
-if not value_cols:
-    st.warning(T["warn_col"])
-    st.stop()
+# Column setup
+all_cols = df.columns.tolist()
+month_col = all_cols[0]
+value_cols = all_cols[1:]
 
 st.divider()
-st.markdown(T["metrics"])
+
+# ===== 1. ALERT BAR =====
+st.markdown("### 🚨 การแจ้งเตือน" if thai else "### 🚨 Alerts")
+
+alerts = []
+for col in value_cols:
+    last = df[col].iloc[-1]
+    prev = df[col].iloc[-2]
+    change = ((last - prev) / prev) * 100
+    avg = df[col].mean()
+
+    if change <= -20:
+        alerts.append(("red", f"🔴 {col}: {'ยอดตก' if thai else 'Drop'} {abs(change):.1f}% {'จากเดือนก่อน' if thai else 'from last period'}"))
+    elif change <= -10:
+        alerts.append(("yellow", f"🟡 {col}: {'ยอดลดลง' if thai else 'Declined'} {abs(change):.1f}%"))
+    elif last < avg * 0.8:
+        alerts.append(("yellow", f"🟡 {col}: {'ต่ำกว่าค่าเฉลี่ย' if thai else 'Below average'}"))
+    else:
+        alerts.append(("green", f"🟢 {col}: {'ปกติดี' if thai else 'Normal'} ✓"))
+
+for level, msg in alerts:
+    st.markdown(f'<div class="alert-{level}">{msg}</div>', unsafe_allow_html=True)
+
+st.divider()
+
+# ===== 2. KPI =====
+st.markdown("### 📊 ภาพรวมสำคัญ" if thai else "### 📊 Key Metrics")
+
 kpi_cols = st.columns(len(value_cols))
 for i, col in enumerate(value_cols):
     total = int(df[col].sum())
-    avg = round(df[col].mean(), 1)
-    max_val = int(df[col].max())
+    last_val = int(df[col].iloc[-1])
+    prev_val = int(df[col].iloc[-2])
+    delta = last_val - prev_val
     kpi_cols[i].metric(
         label=f"📦 {col}",
         value=f"{total:,}",
-        delta=f"{T['avg']}: {avg} | {T['max']}: {max_val}"
+        delta=f"{'+' if delta > 0 else ''}{delta} {'จากเดือนก่อน' if thai else 'vs last period'}"
     )
 
 st.divider()
-st.markdown(T["chart"])
-products = st.multiselect(T["filter"], value_cols, default=value_cols)
 
-tab1, tab2 = st.tabs([T["line"], T["bar"]])
-
+# ===== 3. CHART =====
+st.markdown("### 📈 กราฟแนวโน้ม" if thai else "### 📈 Sales Trend")
+tab1, tab2 = st.tabs(["📈 Line", "📊 Bar"])
 with tab1:
-    fig_line = px.line(
-        df, x=month_col, y=products,
-        markers=True,
-        title=T["line_title"],
-        template="plotly_dark",
-        color_discrete_sequence=px.colors.qualitative.Set2
-    )
-    fig_line.update_layout(
-        hovermode="x unified", height=450,
-        xaxis_title=T["month_axis"],
-        yaxis_title=T["sales_axis"]
-    )
-    st.plotly_chart(fig_line, use_container_width=True)
+    fig = px.line(df, x=month_col, y=value_cols, markers=True,
+                  template="plotly_dark",
+                  color_discrete_sequence=px.colors.qualitative.Set2)
+    fig.update_layout(hovermode="x unified", height=400)
+    st.plotly_chart(fig, use_container_width=True)
 
 with tab2:
-    fig_bar = px.bar(
-        df, x=month_col, y=products,
-        barmode="group",
-        title=T["bar_title"],
-        template="plotly_dark",
-        color_discrete_sequence=px.colors.qualitative.Set2
+    fig2 = px.bar(df, x=month_col, y=value_cols, barmode="group",
+                  template="plotly_dark",
+                  color_discrete_sequence=px.colors.qualitative.Set2)
+    fig2.update_layout(height=400)
+    st.plotly_chart(fig2, use_container_width=True)
+
+st.divider()
+
+# ===== 4. TOP PRODUCTS =====
+st.markdown("### 🏆 สินค้าขายดีสุด" if thai else "### 🏆 Top Products")
+
+totals = df[value_cols].sum().sort_values(ascending=False)
+top_cols = st.columns(len(value_cols))
+for i, (name, val) in enumerate(totals.items()):
+    rank = ["🥇","🥈","🥉","4️⃣","5️⃣"][i] if i < 5 else f"{i+1}."
+    top_cols[i].metric(f"{rank} {name}", f"{int(val):,}")
+
+st.divider()
+
+# ===== 5. EXPORT =====
+st.markdown("### 💾 ดาวน์โหลดรายงาน" if thai else "### 💾 Export Report")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    excel_buf = io.BytesIO()
+    with pd.ExcelWriter(excel_buf, engine='openpyxl') as w:
+        df.to_excel(w, index=False)
+    st.download_button(
+        "📥 Excel",
+        excel_buf.getvalue(),
+        "report.xlsx",
+        mime="application/vnd.ms-excel",
+        use_container_width=True
     )
-    fig_bar.update_layout(height=450)
-    st.plotly_chart(fig_bar, use_container_width=True)
 
-st.divider()
-st.markdown(T["summary"])
-c1, c2, c3 = st.columns(3)
-best_col = df[value_cols].sum().idxmax()
-worst_col = df[value_cols].sum().idxmin()
-best_month = df.loc[df[value_cols].sum(axis=1).idxmax(), month_col]
+with col2:
+    csv = df.to_csv(index=False, encoding='utf-8-sig')
+    st.download_button(
+        "📥 CSV",
+        csv, "report.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
 
-with c1:
-    st.success(f"{T['best_prod']}\n\n{best_col}")
-with c2:
-    st.error(f"{T['worst_prod']}\n\n{worst_col}")
-with c3:
-    st.info(f"{T['best_month']}\n\n{best_month}")
+with col3:
+    pdf_buf = io.BytesIO()
+    c = canvas.Canvas(pdf_buf, pagesize=A4)
+    w, h = A4
+    c.setFont("Helvetica-Bold", 20)
+    c.drawString(50, h-50, "Sales Dashboard Report")
+    c.setFont("Helvetica", 12)
+    c.drawString(50, h-80, f"Total Products: {len(value_cols)}")
+    y = h - 120
+    for col in value_cols:
+        c.drawString(50, y, f"{col}: {int(df[col].sum()):,}")
+        y -= 25
+    c.save()
+    st.download_button(
+        "📥 PDF",
+        pdf_buf.getvalue(),
+        "report.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
 
-st.divider()
-with st.expander(T["raw"]):
+with st.expander("📋 ดูข้อมูลดิบ" if thai else "📋 Raw Data"):
     st.dataframe(df, use_container_width=True)
 
-st.markdown(T["export"])
-c1, c2 = st.columns(2)
-with c1:
-    excel_buffer = io.BytesIO()
-    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False)
-    st.download_button(T["dl_excel"], excel_buffer.getvalue(), "report.xlsx", mime="application/vnd.ms-excel", use_container_width=True)
-with c2:
-    csv = df.to_csv(index=False, encoding='utf-8-sig')
-    st.download_button(T["dl_csv"], csv, "report.csv", mime="text/csv", use_container_width=True)
-
 st.divider()
-st.markdown(f"*{T['footer']}*")
+st.markdown("*Made with ❤️ Python & Streamlit*")
