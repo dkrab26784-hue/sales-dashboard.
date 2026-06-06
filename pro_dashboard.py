@@ -199,7 +199,4 @@ with col2:
     )
 
 st.divider()
-st.markdown("*Made with ❤️ using Python & Streamlit*")ad CSV",
-                       csv,
-                       "data.csv",
-                       mime="text/csv")
+st.markdown("*Made with ❤️ using Python & Streamlit*")
