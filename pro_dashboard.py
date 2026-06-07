@@ -2,6 +2,29 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import io
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+if not firebase_admin._apps:
+    key_dict = dict(st.secrets["firebase"])
+    key_dict["private_key"] = key_dict["private_key"].replace("\\n", "\n")
+    cred = credentials.Certificate(key_dict)
+    firebase_admin.initialize_app(cred)
+
+db = firestore.client()
+from datetime import datetime
+
+def check_user_plan(email):
+    user = db.collection("users").where("email", "==", email).get()
+    if user:
+        data = user[0].to_dict()
+        if data.get("status") == "active" and data.get("plan") == "premium":
+            end_date = data.get("end_date", "")
+            if end_date >= datetime.now().strftime("%Y-%m-%d"):
+                return True
+    return False
+
+
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
@@ -14,11 +37,52 @@ if not st.session_state["logged_in"]:
     login_page()
     st.stop()
 
+email = st.session_state.get("email", "")
+if not check_user_plan(email):
+    st.warning("⚠️ คุณยังไม่มีแผน Premium")
+    st.markdown("## 💎 Premium Plan — 299 บาท/เดือน")
+    st.markdown("""
+    ✅ อัพโหลดไฟล์ CSV/Excel  
+    ✅ กราฟวิเคราะห์ครบทุกฟีเจอร์  
+    ✅ Export PDF  
+    ✅ แจ้งเตือนยอดขาย  
+    ✅ รองรับภาษาไทย/อังกฤษ  
+    """)
+    st.markdown("### 📱 สแกน QR Code ชำระเงิน")
+col1, col2 = st.columns([1,2])
+with col1:
+    st.image("qr_promptpay.png", width=200)
+with col2:
+    st.markdown("""
+    PromptPay: 095-453-8158  
+    ราคา: 299 บาท/เดือน  
+    
+    หลังโอนเงินแล้วกดปุ่ม "แจ้งชำระเงิน" ด้านล่างได้เลยครับ
+    """)
+    col1, col2 = st.columns(2)
+    with col1:
+        st.info("📱 ติดต่อสั่งซื้อ Line: jsufijwu ไม่มี ๑ หรือ เบอร์โทร: 081-132-0649")
+        st.link_button(
+        "📝 แจ้งชำระเงิน / สมัคร Premium",
+        "https://docs.google.com/forms/d/e/1FAIpQLSeeuv1B8Q7nLuRGrAECf7UCKroEpYzXQgSDNOPLoCrSURfSgQ/viewform?usp=publish-editor"  # ใส่ลิงก์ฟอร์มจริงของคุณ
+        )
+    with col2:
+        st.info("🎁 ทดลองใช้ได้ฟรี 7 วัน! กรอกแบบฟอร์มเพื่อรับสิทธิ์ทดลองใช้")
+        st.link_button(
+            "📝 สมัครทดลองใช้ฟรี", 
+            "https://docs.google.com/forms/d/e/1FAIpQLSe2h18XFeErBlhZuL03p7v4fBO1STwT3FXOefkXjebPw8DZVA/viewform?usp=publish-editor"
+        )
+    st.stop()
+
+
 with st.sidebar:
     st.write(f"👤 {st.session_state.get('email', '')}")
     if st.button("🔒 ออกจากระบบ"):
         st.session_state["logged_in"] = False
         st.rerun()
+    st.markdown("---")
+    st.link_button("💬 ติดต่อแอดมิน Line", 
+                   "https://line.me/ti/p/~jsufijwu")
 
 st.set_page_config(page_title="Sales Dashboard", layout="wide", page_icon="📊")
 
