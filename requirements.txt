@@ -5,3 +5,6 @@ openpyxl
 plotly
 reportlab
 pyrebase4
+firebase-admin
+python-dotenv
+requests
