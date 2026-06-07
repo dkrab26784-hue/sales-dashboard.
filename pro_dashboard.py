@@ -12,12 +12,16 @@ if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
+from datetime import datetime
+
 def check_user_plan(email):
     user = db.collection("users").where("email", "==", email).get()
     if user:
         data = user[0].to_dict()
         if data.get("status") == "active" and data.get("plan") == "premium":
-            return True
+            end_date = data.get("end_date", "")
+            if end_date >= datetime.now().strftime("%Y-%m-%d"):
+                return True
     return False
 
 
