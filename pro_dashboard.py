@@ -44,6 +44,17 @@ if not check_user_plan(email):
     ✅ แจ้งเตือนยอดขาย  
     ✅ รองรับภาษาไทย/อังกฤษ  
     """)
+    st.markdown("### 📱 สแกน QR Code ชำระเงิน")
+col1, col2 = st.columns([1,2])
+with col1:
+    st.image("qr_promptpay.png", width=200)
+with col2:
+    st.markdown("""
+    PromptPay: 095-453-8158  
+    ราคา: 299 บาท/เดือน  
+    
+    หลังโอนเงินแล้วกดปุ่ม "แจ้งชำระเงิน" ด้านล่างได้เลยครับ
+    """)
     col1, col2 = st.columns(2)
     with col1:
         st.info("📱 ติดต่อสั่งซื้อ Line: jsufijwu ไม่มี ๑ หรือ เบอร์โทร: 081-132-0649")
