@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import streamlit as st
 import requests
 from dotenv import load_dotenv
@@ -156,4 +155,3 @@ def login_page():
                         st.error("❌ อีเมลนี้ถูกใช้แล้ว")
                     else:
                         st.error(f"❌ {error_msg}")
->>>>>>> 679db70e8cfeabdb96a83c2785be9b8dfece0545
