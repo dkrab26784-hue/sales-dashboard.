@@ -1,7 +1,9 @@
 import streamlit as st
 import requests
-
-FIREBASE_API_KEY = "AIzaSyAmMZr0A3_u6Czj7MR4gYnfEKhH8P1QFjA"
+from dotenv import load_dotenv
+import os
+load_dotenv()
+FIREBASE_API_KEY = os.getenv("FIREBASE_API_KEY")
 
 def sign_up(email, password):
     url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={FIREBASE_API_KEY}"
@@ -12,6 +14,12 @@ def sign_up(email, password):
 def sign_in(email, password):
     url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
     data = {"email": email, "password": password, "returnSecureToken": True}
+    r = requests.post(url, json=data)
+    return r.json()
+
+def reset_password(email):
+    url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={FIREBASE_API_KEY}"
+    data = {"requestType": "PASSWORD_RESET", "email": email}
     r = requests.post(url, json=data)
     return r.json()
 
@@ -26,6 +34,7 @@ def login_page():
         email = st.text_input("📧 อีเมล", key="li_email")
         password = st.text_input("🔒 รหัสผ่าน", type="password", key="li_pass")
         st.checkbox("จดจำการเข้าสู่ระบบ")
+        
         if st.button("เข้าสู่ระบบ", use_container_width=True, type="primary"):
             if email and password:
                 result = sign_in(email, password)
@@ -39,6 +48,14 @@ def login_page():
                     st.error("❌ อีเมลหรือรหัสผ่านไม่ถูกต้อง")
             else:
                 st.warning("⚠️ กรุณากรอกอีเมลและรหัสผ่าน")
+
+        st.markdown("---")
+        if st.button("🔑 ลืมรหัสผ่าน?", use_container_width=True):
+            if email:
+                reset_password(email)
+                st.success("📧 ส่ง email reset แล้ว กรุณาเช็ค gmail")
+            else:
+                st.warning("⚠️ กรุณาใส่ email ก่อน")
 
     with tab2:
         new_email = st.text_input("📧 อีเมล", key="su_email")
@@ -54,6 +71,8 @@ def login_page():
                 if "idToken" in result:
                     st.success("✅ สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ")
                 else:
-                    st.error("❌ อีเมลนี้ถูกใช้แล้ว")
-            else:
-                st.warning("⚠️ กรุณากรอกข้อมูลให้ครบ")
+                    error_msg = result.get("error", {}).get("message", "")
+                    if error_msg == "EMAIL_EXISTS":
+                        st.error("❌ อีเมลนี้ถูกใช้แล้ว")
+                    else:
+                        st.error(f"❌ {error_msg}")
